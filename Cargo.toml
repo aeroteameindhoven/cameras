@@ -1,0 +1,15 @@
+[package]
+authors = ["Zachary Kohnen <me@dusterthefirst.com>"]
+edition = "2021"
+name    = "cameras"
+publish = false
+version = "0.0.0"
+
+[dependencies]
+clap                   = { version = "4.3.2", features = ["derive"] }
+libcamera              = "0.2.1"
+log                    = { version = "0.4.18", features = ["std"] }
+mavlink                = { version = "0.11.2", default-features = false, features = ["cubepilot", "std"] }
+serial2                = "0.2.1"
+simplelog              = "0.12.1"
+systemd-journal-logger = "1.0.0"
