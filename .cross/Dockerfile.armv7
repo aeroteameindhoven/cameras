@@ -1,0 +1,7 @@
+FROM ghcr.io/cross-rs/armv7-unknown-linux-gnueabihf:edge
+
+RUN set -xeu; \
+    dpkg --add-architecture armhf; \
+    apt update; \
+    apt install --assume-yes libudev-dev:armhf; \
+    apt clean
