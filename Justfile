@@ -5,7 +5,7 @@ _:
 build:
     cross build
 
-pi_ip := "10.42.0.159"
+pi_ip := "10.42.0.87"
 
 # Upload over SCP
 upload: build
@@ -16,3 +16,6 @@ set positional-arguments
 # Run over SSH
 run *args: build upload
     ssh -t aero@{{pi_ip}} "/home/aero/cameras/cameras $@"
+
+ssh:
+    ssh aero@{{pi_ip}}

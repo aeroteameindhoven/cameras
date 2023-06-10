@@ -52,7 +52,7 @@ fn main() {
     // serialport::available_ports();
 
     info!("connecting to serial port: {:?}", args.port);
-    let serial_port = match serialport::new(args.port, 115200)
+    let serial_port = match serialport::new(args.port, 921600)
         .timeout(Duration::from_millis(500))
         .open_native()
     {
@@ -65,10 +65,7 @@ fn main() {
 
     info!("initialized, program will gracefully handle errors from now on");
 
-    let mut connection = MavLinkConnection {
-        serial_port,
-        sequence_number: 0,
-    };
+    let mut connection = MavLinkConnection::new(serial_port);
 
     // Keep trying to handle mavlink commands, handling errors and retrying on timeouts
     loop {
@@ -82,61 +79,73 @@ fn handle_mavlink(
     connection: &mut MavLinkConnection,
     system_start: Instant,
 ) -> ControlFlow<Result<(), io::Error>, ()> {
-    let message = mavlink_heartbeat_message();
-    connection.write_gracefully(message)?;
+    connection.attempt_heartbeat();
 
-    if let (header, mavlink::common::MavMessage::COMMAND_INT(command)) =
-        connection.read_gracefully()?
-    {
-        let acknowledge = |result| {
-            mavlink::common::MavMessage::COMMAND_ACK(mavlink::common::COMMAND_ACK_DATA {
-                command: command.command,
-                result,
-                target_component: header.component_id,
-                target_system: header.system_id,
-                ..Default::default()
-            })
-        };
+    match connection.read_gracefully()? {
+        (header, mavlink::common::MavMessage::HEARTBEAT(heartbeat)) => {
+            debug!("RX: {header:?} {heartbeat:?}");
+        }
+        (header, mavlink::common::MavMessage::COMMAND_INT(command)) => {
+            let acknowledge = |result| {
+                mavlink::common::MavMessage::COMMAND_ACK(mavlink::common::COMMAND_ACK_DATA {
+                    command: command.command,
+                    result,
+                    target_component: header.component_id,
+                    target_system: header.system_id,
+                    ..Default::default()
+                })
+            };
 
-        match command.command {
-            mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_INFORMATION => {
-                connection.write_gracefully(acknowledge(
-                    mavlink::common::MavResult::MAV_RESULT_ACCEPTED,
-                ))?;
+            debug!("RX: {header:?} {command:?}");
 
-                connection.write_gracefully(mavlink::common::MavMessage::CAMERA_INFORMATION(
-                    mavlink::common::CAMERA_INFORMATION_DATA {
-                        flags: mavlink::common::CameraCapFlags::CAMERA_CAP_FLAGS_CAPTURE_VIDEO,
-                        focal_length: 5.1,
-                        lens_id: 0,
-                        resolution_h: todo!(),
-                        resolution_v: todo!(),
-                        sensor_size_h: todo!(),
-                        sensor_size_v: todo!(),
-                        time_boot_ms: system_start.elapsed().as_millis() as u32,
-                        firmware_version: todo!(),
-                        model_name: mav_str(b"16MP IMX519 Quad-Camera Kit"),
-                        vendor_name: mav_str(b"arducam"),
-                        ..Default::default()
-                    },
-                ))?;
-            }
-            mavlink::common::MavCmd::MAV_CMD_CAMERA_STOP_TRACKING => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_CAMERA_TRACK_POINT => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_CAMERA_TRACK_RECTANGLE => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_CAPTURE_STATUS => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_IMAGE_CAPTURE => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_SETTINGS => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_RESET_CAMERA_SETTINGS => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_SET_CAMERA_FOCUS => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_SET_CAMERA_MODE => todo!(),
-            mavlink::common::MavCmd::MAV_CMD_SET_CAMERA_ZOOM => todo!(),
-            _ => {
-                connection.write_gracefully(acknowledge(
-                    mavlink::common::MavResult::MAV_RESULT_UNSUPPORTED,
-                ))?;
+            match command.command {
+                mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_INFORMATION => {
+                    connection.write_gracefully(acknowledge(
+                        mavlink::common::MavResult::MAV_RESULT_ACCEPTED,
+                    ))?;
+
+                    connection.write_gracefully(
+                        mavlink::common::MavMessage::CAMERA_INFORMATION(
+                            mavlink::common::CAMERA_INFORMATION_DATA {
+                                flags:
+                                    mavlink::common::CameraCapFlags::CAMERA_CAP_FLAGS_CAPTURE_VIDEO,
+                                focal_length: 5.1,
+                                lens_id: 0,
+                                resolution_h: todo!(),
+                                resolution_v: todo!(),
+                                sensor_size_h: todo!(),
+                                sensor_size_v: todo!(),
+                                time_boot_ms: system_start.elapsed().as_millis() as u32,
+                                firmware_version: todo!(),
+                                model_name: mav_str(b"16MP IMX519 Quad-Camera Kit"),
+                                vendor_name: mav_str(b"arducam"),
+                                ..Default::default()
+                            },
+                        ),
+                    )?;
+                }
+                mavlink::common::MavCmd::MAV_CMD_CAMERA_STOP_TRACKING => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_CAMERA_TRACK_POINT => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_CAMERA_TRACK_RECTANGLE => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_IMAGE_CAPTURE => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_SETTINGS => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_RESET_CAMERA_SETTINGS => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_SET_CAMERA_FOCUS => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_SET_CAMERA_MODE => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_SET_CAMERA_ZOOM => todo!(),
+
+                mavlink::common::MavCmd::MAV_CMD_VIDEO_START_CAPTURE => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_VIDEO_STOP_CAPTURE => todo!(),
+                mavlink::common::MavCmd::MAV_CMD_REQUEST_CAMERA_CAPTURE_STATUS => todo!(),
+
+                _ => {
+                    connection.write_gracefully(acknowledge(
+                        mavlink::common::MavResult::MAV_RESULT_UNSUPPORTED,
+                    ))?;
+                }
             }
         }
+        _ => (),
     };
 
     ControlFlow::Continue(())
@@ -145,9 +154,31 @@ fn handle_mavlink(
 pub struct MavLinkConnection {
     serial_port: TTYPort,
     sequence_number: u8,
+    last_heartbeat: Instant,
 }
 
 impl MavLinkConnection {
+    fn new(serial_port: TTYPort) -> Self {
+        Self {
+            serial_port,
+            sequence_number: 0,
+            last_heartbeat: Instant::now(),
+        }
+    }
+
+    fn attempt_heartbeat(&mut self) -> ControlFlow<Result<(), io::Error>, usize> {
+        if self.last_heartbeat.elapsed() >= Duration::from_secs(1) {
+            let message = mavlink_heartbeat_message();
+
+            let len = self.write_gracefully(message)?;
+            self.last_heartbeat = Instant::now();
+
+            ControlFlow::Continue(len)
+        } else {
+            ControlFlow::Continue(0)
+        }
+    }
+
     fn mavlink_header(&mut self) -> mavlink::MavHeader {
         let header = mavlink::MavHeader {
             system_id: 1,
@@ -191,11 +222,7 @@ impl MavLinkConnection {
             Err(MessageReadError::Parse(error)) => {
                 todo!("{error}")
             }
-            Ok((header, message)) => {
-                debug!("RX: {header:?} {message:?}");
-
-                ControlFlow::Continue((header, message))
-            }
+            Ok((header, message)) => ControlFlow::Continue((header, message)),
         }
     }
 }
@@ -216,7 +243,7 @@ pub fn mavlink_heartbeat_message() -> mavlink::common::MavMessage {
         mavtype: mavlink::common::MavType::MAV_TYPE_CAMERA,
         autopilot: mavlink::common::MavAutopilot::MAV_AUTOPILOT_INVALID,
         base_mode: mavlink::common::MavModeFlag::empty(),
-        system_status: mavlink::common::MavState::MAV_STATE_STANDBY,
+        system_status: mavlink::common::MavState::MAV_STATE_ACTIVE,
         mavlink_version: 0x00,
     })
 }
