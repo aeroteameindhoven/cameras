@@ -1,0 +1,12 @@
+[Unit]
+Description = "Camera manager"
+
+[Service]
+Restart = always
+Type = "simple"
+# FIXME:
+ExecStart = ""
+
+[Install]
+# FIXME: WANTS CAMERA SERVICE if there is one?
+Wants =
