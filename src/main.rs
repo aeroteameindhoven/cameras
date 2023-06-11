@@ -1,6 +1,6 @@
-use std::time::{Instant, SystemTime};
+use std::time::SystemTime;
 
-use gpio_cdev::{Chip, EventRequestFlags, LineEvent, LineRequestFlags};
+use gpio_cdev::{Chip, EventRequestFlags, LineRequestFlags};
 use log::{debug, error, info, trace, warn};
 use simplelog::TermLogger;
 use systemd_journal_logger::JournalLog;
@@ -8,8 +8,6 @@ use systemd_journal_logger::JournalLog;
 const GPIO_PIN: u32 = 18;
 
 fn main() {
-    let system_start = Instant::now();
-
     if systemd_journal_logger::connected_to_journal() {
         // If the output streams of this process are directly connected to the
         // systemd journal log directly to the journal to preserve structured
