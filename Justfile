@@ -5,7 +5,7 @@ _:
 build:
     cross build
 
-pi_ip := "10.42.0.87"
+pi_ip := "10.42.0.56"
 
 # Upload over SCP
 upload: build

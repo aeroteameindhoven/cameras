@@ -4,6 +4,7 @@ use gpio_cdev::{Chip, EventRequestFlags, LineRequestFlags};
 use log::{debug, error, info, trace, warn};
 use simplelog::TermLogger;
 use systemd_journal_logger::JournalLog;
+use time::OffsetDateTime;
 
 const GPIO_PIN: u32 = 18;
 
@@ -59,7 +60,7 @@ fn main() {
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_nanos()
-                )
+                );
             }
             Err(error) => {
                 error!("{error}");

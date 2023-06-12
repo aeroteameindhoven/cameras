@@ -8,5 +8,6 @@ version = "0.0.0"
 [dependencies]
 gpio-cdev              = "0.5.1"
 log                    = { version = "0.4.18", features = ["std"] }
+nix = "0.26.2"
 simplelog              = "0.12.1"
 systemd-journal-logger = "1.0.0"
